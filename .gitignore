@@ -7,7 +7,7 @@ modules/
 .west/
 crazyradio2.zip
 .venv/
-build_dongle/
-build_uart/
-build_uart_dongle/
-build/
+build_dongle/*
+build_uart/*
+build_uart_dongle/*
+build_blinky_dongle/*
