@@ -11,3 +11,4 @@ build_dongle/*
 build_uart/*
 build_uart_dongle/*
 build_blinky_dongle/*
+build_blinky/*
