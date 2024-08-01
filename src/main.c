@@ -47,14 +47,8 @@
 
 #include <zephyr/logging/log.h>
 
-// ---- New Imports -------
+#include "legacy_usb.h"
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/drivers/gpio.h>
-#include <string.h>
-
-// ------------------------ 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 
@@ -130,31 +124,7 @@ void main(void)
 	}
 
 #ifndef CONFIG_LEGACY_USB_PROTOCOL
-	
-	print_uart("Initializing UART")
-	char tx_buf[MSG_SIZE];
 
-	if (!device_is_ready(uart_dev)) {
-		print_uart("UART device not found!");
-		return;
-	}
-
-	/* configure interrupt and callback to receive data */
-	uart_irq_callback_user_data_set(uart_dev, serial_cb, NULL);
-	uart_irq_rx_enable(uart_dev);
-
-	print_uart("Hello! I'm your echo bot.\r\n");
-	print_uart("Tell me something and press enter:\r\n");
-
-	/* indefinitely wait for input from the user */
-	while (k_msgq_get(&uart_msgq, &tx_buf, K_FOREVER) == 0) {
-		print_uart("Echo: ");
-		print_uart(tx_buf);
-		print_uart("\r\n");
-	}
-
-
-/*
 	rpc_transport_t usb_transport = {
 		.mtu = USB_MTU,
 		.send = send_usb_message,
@@ -170,9 +140,30 @@ void main(void)
 		rpc_error_t error = rpc_dispatch(&crazyradio2_rpc_api, message.data, message.length, usb_transport, response_buffer);
 		LOG_INF("Dispatching result: %d", error);
     }
-*/
 
 #else
+	print_uart("Initializing UART");
+	char tx_buf[MSG_SIZE];
+
+	if (!device_is_ready(uart_dev)) {
+		print_uart("UART device not found!");
+		return;
+	}
+
+	/* configure interrupt and callback to receive data */
+	uart_irq_callback_user_data_set(uart_dev, serial_cb, NULL);
+	uart_irq_rx_enable(uart_dev);
+
+	print_uart("Hello! I'm your echo bot.\r\n");
+	print_uart("Tell me something and press enter:\r\n");
+
+	/* indefinitely wait for input from the user */
+	while (k_msgq_get(&command_queue, &tx_buf, K_FOREVER) == 0) {
+		print_uart("Echo: ");
+		print_uart(tx_buf);
+		print_uart("\r\n");
+	}
+
 	while(1) {
 		k_sleep(K_MSEC(1000));
 		print_uart("ifndef");

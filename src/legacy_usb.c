@@ -14,6 +14,10 @@
 #include "system.h"
 
 #include <zephyr/logging/log.h>
+// ---- New Imports -------
+
+#include "legacy_usb.h"
+// ------------------------ 
 LOG_MODULE_REGISTER(usb);
 
 struct usb_command {
@@ -21,22 +25,14 @@ struct usb_command {
     uint32_t length;
 };
 
-K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
+//K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 
 static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length);
 
 // ---------------------- Uart Part -----------------------
 // https://github.com/zephyrproject-rtos/zephyr/blob/v3.2-branch/samples/drivers/uart/echo_bot/src/main.c
-#define MSG_SIZE 32
-K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
 
-#define UART_DEVICE_NODE DT_CHOSEN(zephyr_shell_uart)
-static const struct device *const uart_dev = DEVICE_DT_GET(DT_NODELABEL(uart0)); 
-//https://docs.zephyrproject.org/latest/kernel/drivers/index.html#c.DEVICE_DT_GET
-
-
-
-static char rx_buf[MSG_SIZE];
+//static char rx_buf[MSG_SIZE];
 static int rx_buf_pos;
 
 void print_uart(char *buf)
@@ -51,6 +47,7 @@ void print_uart(char *buf)
 void serial_cb(const struct device *dev, void *user_data)
 {
 	uint8_t c;
+    static struct usb_command command;
 
 	if (!uart_irq_update(uart_dev)) {
 		return;
@@ -62,18 +59,36 @@ void serial_cb(const struct device *dev, void *user_data)
 
 	while (uart_fifo_read(uart_dev, &c, 1) == 1) {
 		if ((c == '\n' || c == '\r') && rx_buf_pos > 0) {
-			rx_buf[rx_buf_pos] = '\0';
+			command.payload[rx_buf_pos] = '\0';
 
-			k_msgq_put(&uart_msgq, &rx_buf, K_NO_WAIT);
+            // k_msgq_put(&uart_msgq, &rx_buf, K_NO_WAIT);
+			k_msgq_put(&command_queue, &command, K_FOREVER);
 
 			rx_buf_pos = 0;
-		} else if (rx_buf_pos < (sizeof(rx_buf) - 1)) {
-			rx_buf[rx_buf_pos++] = c;
+		} else if (rx_buf_pos < (sizeof(command.payload) - 1)) {
+			command.payload[rx_buf_pos++] = c;
 		}
 		print_uart("data recieved");
 	}
 }
 
+void crazyradio_out_cb(uint8_t ep, enum usb_dc_ep_cb_status_code cb_status)
+{
+    uint32_t bytes_to_read;
+    static struct usb_command command;
+
+	usb_read(ep, NULL, 0, &bytes_to_read); // reads data amount to come
+	LOG_DBG("ep 0x%x, bytes to read %d ", ep, bytes_to_read);
+    if (bytes_to_read > 64) {
+        bytes_to_read = 64;
+    }
+	usb_read(ep, command.payload, bytes_to_read, NULL);
+
+	command.length = bytes_to_read;
+
+    k_msgq_put(&command_queue, &command, K_FOREVER);
+
+}
 
 // --------------------------------------------------------
 
