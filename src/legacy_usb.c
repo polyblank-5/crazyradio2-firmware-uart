@@ -25,6 +25,58 @@ K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 
 static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length);
 
+// ---------------------- Uart Part -----------------------
+// https://github.com/zephyrproject-rtos/zephyr/blob/v3.2-branch/samples/drivers/uart/echo_bot/src/main.c
+#define MSG_SIZE 32
+K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
+
+#define UART_DEVICE_NODE DT_CHOSEN(zephyr_shell_uart)
+static const struct device *const uart_dev = DEVICE_DT_GET(DT_NODELABEL(uart0)); 
+//https://docs.zephyrproject.org/latest/kernel/drivers/index.html#c.DEVICE_DT_GET
+
+
+
+static char rx_buf[MSG_SIZE];
+static int rx_buf_pos;
+
+void print_uart(char *buf)
+{
+	int msg_len = strlen(buf);
+
+	for (int i = 0; i < msg_len; i++) {
+		uart_poll_out(uart_dev, buf[i]);
+	}
+}
+
+void serial_cb(const struct device *dev, void *user_data)
+{
+	uint8_t c;
+
+	if (!uart_irq_update(uart_dev)) {
+		return;
+	}
+
+	if (!uart_irq_rx_ready(uart_dev)) {
+		return;
+	}
+
+	while (uart_fifo_read(uart_dev, &c, 1) == 1) {
+		if ((c == '\n' || c == '\r') && rx_buf_pos > 0) {
+			rx_buf[rx_buf_pos] = '\0';
+
+			k_msgq_put(&uart_msgq, &rx_buf, K_NO_WAIT);
+
+			rx_buf_pos = 0;
+		} else if (rx_buf_pos < (sizeof(rx_buf) - 1)) {
+			rx_buf[rx_buf_pos++] = c;
+		}
+		print_uart("data recieved");
+	}
+}
+
+
+// --------------------------------------------------------
+
 // state
 static struct {
     uint8_t datarate;
@@ -82,13 +134,14 @@ USBD_CLASS_DESCR_DEFINE(primary, 0) struct usb_crazyradio_config crazyradio_cfg 
 		.bInterval = 0x00,
 	},
 };
-
+/* Read incomming Data
+*/
 void crazyradio_out_cb(uint8_t ep, enum usb_dc_ep_cb_status_code cb_status)
 {
     uint32_t bytes_to_read;
     static struct usb_command command;
 
-	usb_read(ep, NULL, 0, &bytes_to_read);
+	usb_read(ep, NULL, 0, &bytes_to_read); // reads data amount to come
 	LOG_DBG("ep 0x%x, bytes to read %d ", ep, bytes_to_read);
     if (bytes_to_read > 64) {
         bytes_to_read = 64;
@@ -215,7 +268,7 @@ void crazyradio_interface_config(struct usb_desc_header *head, uint8_t bInterfac
 {
 	;
 }
-
+// have to check what that does 
 USBD_CFG_DATA_DEFINE(primary, crazyradio) struct usb_cfg_data crazyradio_config = {
 	.usb_device_description = NULL,
 	.interface_config = crazyradio_interface_config,
