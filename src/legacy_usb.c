@@ -47,29 +47,35 @@ void print_uart(char *buf)
 void serial_cb(const struct device *dev, void *user_data)
 {
 	uint8_t c;
+	uint8_t bytes_to_read = 0;
+	uint32_t rx_buf_pos = 0;
     static struct usb_command command;
 
-	if (!uart_irq_update(uart_dev)) {
+
+	if (!uart_irq_update(dev)) {
 		return;
 	}
 
-	if (!uart_irq_rx_ready(uart_dev)) {
+	if (!uart_irq_rx_ready(dev)) {
 		return;
 	}
 
-	while (uart_fifo_read(uart_dev, &c, 1) == 1) {
-		if ((c == '\n' || c == '\r') && rx_buf_pos > 0) {
-			command.payload[rx_buf_pos] = '\0';
+	uart_fifo_read(dev, &bytes_to_read, 1);
+	print_uart((char) bytes_to_read);
+	if (bytes_to_read > 64) {
+        bytes_to_read = 64;
+    }
 
-            // k_msgq_put(&uart_msgq, &rx_buf, K_NO_WAIT);
-			k_msgq_put(&command_queue, &command, K_FOREVER);
-
-			rx_buf_pos = 0;
-		} else if (rx_buf_pos < (sizeof(command.payload) - 1)) {
-			command.payload[rx_buf_pos++] = c;
+	int i;
+	for (i = 0; i < bytes_to_read; i++) {
+		if (uart_fifo_read(uart_dev, &c, 1) != 1) {
+			return;
 		}
-		print_uart("data recieved");
+		command.payload[rx_buf_pos++] = c;
 	}
+    command.length = bytes_to_read;
+
+	k_msgq_put(&command_queue, &command, K_FOREVER);
 }
 
 void crazyradio_out_cb(uint8_t ep, enum usb_dc_ep_cb_status_code cb_status)

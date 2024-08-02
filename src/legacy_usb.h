@@ -12,6 +12,8 @@ static const struct device *const uart_dev = DEVICE_DT_GET(DT_NODELABEL(uart0));
 
 K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 #define MSG_SIZE 64
+static char rx_buf[MSG_SIZE];
+
 K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
 
 
