@@ -143,7 +143,7 @@ void main(void)
 
 #else
 	print_uart("Initializing UART");
-	char tx_buf[MSG_SIZE];
+	static struct usb_command command;
 
 	if (!device_is_ready(uart_dev)) {
 		print_uart("UART device not found!");
@@ -158,9 +158,9 @@ void main(void)
 	print_uart("Tell me something and press enter:\r\n");
 
 	/* indefinitely wait for input from the user */
-	while (k_msgq_get(&command_queue, &tx_buf, K_FOREVER) == 0) {
+	while (legacy_receive(&command) == 0) {
 		print_uart("Echo: ");
-		print_uart(tx_buf);
+		print_uart(command.payload);
 		print_uart("\r\n");
 	}
 

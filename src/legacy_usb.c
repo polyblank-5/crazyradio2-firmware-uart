@@ -20,12 +20,8 @@
 // ------------------------ 
 LOG_MODULE_REGISTER(usb);
 
-struct usb_command {
-    char payload[64];
-    uint32_t length;
-};
 
-//K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
+K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 
 static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length);
 
@@ -35,6 +31,7 @@ static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length);
 //static char rx_buf[MSG_SIZE];
 static int rx_buf_pos;
 
+// Prints String over UART 
 void print_uart(char *buf)
 {
 	int msg_len = strlen(buf);
@@ -61,7 +58,8 @@ void serial_cb(const struct device *dev, void *user_data)
 	}
 
 	uart_fifo_read(dev, &bytes_to_read, 1);
-	print_uart((char) bytes_to_read);
+    char text[2] = {(char)bytes_to_read, '\0'};
+	print_uart(text);
 	if (bytes_to_read > 64) {
         bytes_to_read = 64;
     }
@@ -76,24 +74,6 @@ void serial_cb(const struct device *dev, void *user_data)
     command.length = bytes_to_read;
 
 	k_msgq_put(&command_queue, &command, K_FOREVER);
-}
-
-void crazyradio_out_cb(uint8_t ep, enum usb_dc_ep_cb_status_code cb_status)
-{
-    uint32_t bytes_to_read;
-    static struct usb_command command;
-
-	usb_read(ep, NULL, 0, &bytes_to_read); // reads data amount to come
-	LOG_DBG("ep 0x%x, bytes to read %d ", ep, bytes_to_read);
-    if (bytes_to_read > 64) {
-        bytes_to_read = 64;
-    }
-	usb_read(ep, command.payload, bytes_to_read, NULL);
-
-	command.length = bytes_to_read;
-
-    k_msgq_put(&command_queue, &command, K_FOREVER);
-
 }
 
 // --------------------------------------------------------
@@ -342,7 +322,7 @@ static void usb_thread(void *, void *, void *) {
             memcpy(packet.data, command.payload, command.length);
             packet.length = command.length;
         }
-        
+        // Maybe exchange usb_write with print_uart
         if (state.datarate != 0 && state.channel <= 100) {
             bool acked = esb_send_packet(&packet, &ack, &rssi, &arc_counter);
             if (ack.length > 32) {
@@ -416,5 +396,16 @@ static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length) {
         }
     }
 }
+
+// ****************** Public API *****************
+
+int legacy_send(const struct usb_command *command) {
+	 return k_msgq_put(&command_queue, command, K_FOREVER);
+}
+
+int legacy_receive(struct usb_command *command) {
+	return k_msgq_get(&command_queue, command, K_FOREVER);
+}
+
 
 #endif
