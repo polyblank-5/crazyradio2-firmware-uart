@@ -29,7 +29,7 @@ static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length);
 // https://github.com/zephyrproject-rtos/zephyr/blob/v3.2-branch/samples/drivers/uart/echo_bot/src/main.c
 
 //static char rx_buf[MSG_SIZE];
-static int rx_buf_pos;
+//static int rx_buf_pos;
 
 // Prints String over UART 
 void print_uart(char *buf)
@@ -58,8 +58,7 @@ void serial_cb(const struct device *dev, void *user_data)
 	}
 
 	uart_fifo_read(dev, &bytes_to_read, 1);
-    char text[2] = {(char)bytes_to_read, '\0'};
-	print_uart(text);
+    char msg_len[2] = {(char)bytes_to_read, '\0'};
 	if (bytes_to_read > 64) {
         bytes_to_read = 64;
     }
@@ -67,12 +66,11 @@ void serial_cb(const struct device *dev, void *user_data)
 	int i;
 	for (i = 0; i < bytes_to_read; i++) {
 		if (uart_fifo_read(uart_dev, &c, 1) != 1) {
-			return;
+			break;
 		}
 		command.payload[rx_buf_pos++] = c;
 	}
     command.length = bytes_to_read;
-
 	k_msgq_put(&command_queue, &command, K_FOREVER);
 }
 
@@ -335,6 +333,7 @@ static void usb_thread(void *, void *, void *) {
                 usb_answer[0] = (arc_counter & 0x0f) << 4 | (rssi < 64)<<1 | 1;
                 memcpy(&usb_answer[1], ack.data, ack.length);
             
+                print_uart(usb_answer);
                 if (usb_write(CRAZYRADIO_IN_EP_ADDR, usb_answer, ack.length + 1, NULL)) {
                     LOG_DBG("ep 0x%x", CRAZYRADIO_IN_EP_ADDR);
                 }
@@ -342,7 +341,8 @@ static void usb_thread(void *, void *, void *) {
                 led_pulse_green(K_MSEC(50));
             } else {
                 char no_ack_answer[1] = {0};
-        
+
+                print_uart(no_ack_answer);
                 if (usb_write(CRAZYRADIO_IN_EP_ADDR, no_ack_answer, 1, NULL)) {
                     LOG_DBG("ep 0x%x", CRAZYRADIO_IN_EP_ADDR);
                 }
@@ -353,7 +353,8 @@ static void usb_thread(void *, void *, void *) {
         } else {
             LOG_DBG("Not sending, radio settings not handled!");
             char no_ack_answer[1] = {0};
-        
+            
+            print_uart(no_ack_answer);
             if (usb_write(CRAZYRADIO_IN_EP_ADDR, no_ack_answer, 1, NULL)) {
                 LOG_DBG("ep 0x%x", CRAZYRADIO_IN_EP_ADDR);
             }

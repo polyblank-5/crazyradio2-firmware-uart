@@ -163,10 +163,5 @@ void main(void)
 		print_uart(command.payload);
 		print_uart("\r\n");
 	}
-
-	while(1) {
-		k_sleep(K_MSEC(1000));
-		print_uart("ifndef");
-	}
 #endif
 }

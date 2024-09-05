@@ -9,6 +9,7 @@
 
 #define UART_DEVICE_NODE DT_CHOSEN(zephyr_shell_uart)
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_NODELABEL(uart0)); 
+//static const struct device *const uart_sys = DEVICE_DT_GET(DT_NODELABEL(uart1)); 
 //https://docs.zephyrproject.org/latest/kernel/drivers/index.html#c.DEVICE_DT_GET
 
 struct usb_command {
@@ -18,7 +19,7 @@ struct usb_command {
 
 //K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 #define MSG_SIZE 64
-static char rx_buf[MSG_SIZE];
+//static char rx_buf[MSG_SIZE];
 
 //K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
 

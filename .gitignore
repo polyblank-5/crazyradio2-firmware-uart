@@ -10,6 +10,7 @@ crazyradio2.zip
 build_dongle/*
 build_uart/*
 build_uart_dongle/*
+build_uart_dongle_2/*
 build_blinky_dongle/*
 build_blinky/*
 build_echo/*
