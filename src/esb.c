@@ -425,7 +425,7 @@ bad_request:
 }
 
 // Public API
-int read_radio_queue(const char *command){
+int radioq_get( char *command){
     return k_msgq_get(&radio_msgq, command, K_FOREVER);
 }
 
