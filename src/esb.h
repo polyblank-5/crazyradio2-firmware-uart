@@ -104,3 +104,6 @@ bool esb_send_packet(struct esbPacket_s *packet, struct esbPacket_s * ack, uint8
 #include "rpc.h"
 
 void esb_send_packet_rpc(const rpc_request_t *request, rpc_response_t *response);
+
+// read receiving queue API
+int read_radio_queue(const char *command);

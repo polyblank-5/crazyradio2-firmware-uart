@@ -36,6 +36,13 @@
 #include <zephyr/device.h>
 #include <zephyr/random/rand32.h>
 
+// New Imports
+#include "legacy_usb.h"
+
+#define PACKET_MAX_SIZE 32  // Define maximum packet size
+#define QUEUE_SIZE 10        // Define the number of messages in the queue
+K_MSGQ_DEFINE(radio_msgq, PACKET_MAX_SIZE, QUEUE_SIZE, 4);
+
 static K_MUTEX_DEFINE(radio_busy);
 static K_SEM_DEFINE(radioXferDone, 0, 1);
 
@@ -62,6 +69,9 @@ static void radio_isr(void *arg)
             fem_txen_set(false);
             fem_rxen_set(true);
 
+            // For Logging purpusses 
+            print_uart("sending Radio Messege");
+
             // Setup ack data address
             nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
 
@@ -85,8 +95,12 @@ static void radio_isr(void *arg)
         }
     } else {
         // Packet received or timeout
+        print_uart("recieving Radio Message");
+        // Setup ack data address
+        nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
+        k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
         // Disable FEM
-        fem_rxen_set(false);
+        //fem_rxen_set(false);
 
         timeout = nrf_timer_event_check(NRF_TIMER0, NRF_TIMER_EVENT_COMPARE1);
         nrf_timer_event_clear(NRF_TIMER0, NRF_TIMER_EVENT_COMPARE1);
@@ -131,8 +145,8 @@ void esb_init()
     nrf_radio_frequency_set(NRF_RADIO, 2447);
 
     // Configure Addresses
-    nrf_radio_base0_set(NRF_RADIO, 0xe7e7e7e7);
-    nrf_radio_prefix0_set(NRF_RADIO, 0x000000e7);
+    nrf_radio_base0_set(NRF_RADIO, 0xe7e7e7e7); 
+    nrf_radio_prefix0_set(NRF_RADIO, 0x000000e7); //TODO: DO I have to change this addres accordingly to the one of the crazyflie
     nrf_radio_txaddress_set(NRF_RADIO, 0);
     nrf_radio_rxaddresses_set(NRF_RADIO, 0x01u);
 
@@ -150,7 +164,8 @@ void esb_init()
 
     fem_init();
 
-    ack_enabled = true;
+    //ack_enabled = true; // TODO: change for testing 
+    ack_enabled = false;
     arc = 3;
 
     isInit = true;
@@ -408,3 +423,9 @@ void esb_send_packet_rpc(const rpc_request_t *request, rpc_response_t *response)
 bad_request:
     rpc_response_send_errorstr(response, error);
 }
+
+// Public API
+int read_radio_queue(const char *command){
+    return k_msgq_get(&radio_msgq, command, K_FOREVER);
+}
+

@@ -236,7 +236,7 @@ static int crazyradio_vendor_handler(struct usb_setup_packet *setup,
             bool enabled = setup->wValue != 0;
 			LOG_DBG("Setting radio ACK Enable %s", enabled?"true":"false");
             state.ack_enabled = enabled;
-            esb_set_ack_enabled(enabled);
+            esb_set_ack_enabled(enabled); //TODO: Dissable 
 		} else if (setup->bRequest == SET_CONT_CARRIER && setup->wLength == 0) {
 			LOG_DBG("Setting radio Continious carrier %s", setup->wValue?"true":"false");
         } else if (setup->bRequest == CHANNEL_SCANN && usb_reqtype_is_to_device(setup)) {
@@ -267,7 +267,7 @@ void crazyradio_interface_config(struct usb_desc_header *head, uint8_t bInterfac
 {
 	;
 }
-// have to check what that does 
+// TODO: have to check what that does 
 USBD_CFG_DATA_DEFINE(primary, crazyradio) struct usb_cfg_data crazyradio_config = {
 	.usb_device_description = NULL,
 	.interface_config = crazyradio_interface_config,
@@ -320,7 +320,7 @@ static void usb_thread(void *, void *, void *) {
             memcpy(packet.data, command.payload, command.length);
             packet.length = command.length;
         }
-        // Maybe exchange usb_write with print_uart
+
         if (state.datarate != 0 && state.channel <= 100) {
             bool acked = esb_send_packet(&packet, &ack, &rssi, &arc_counter);
             if (ack.length > 32) {

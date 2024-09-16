@@ -144,6 +144,7 @@ void main(void)
 #else
 	print_uart("Initializing UART");
 	static struct usb_command command;
+	static char radio_data[32];
 
 	if (!device_is_ready(uart_dev)) {
 		print_uart("UART device not found!");
@@ -161,6 +162,10 @@ void main(void)
 	while (legacy_receive(&command) == 0) {
 		print_uart("Echo: ");
 		print_uart(command.payload);
+		print_uart("\r\n");
+		read_radio_queue(&radio_data);
+		print_uart("Radio_MSG:");
+		print_uart(radio_data);
 		print_uart("\r\n");
 	}
 #endif
