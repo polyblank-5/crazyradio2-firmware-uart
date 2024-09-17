@@ -64,10 +64,10 @@ void serial_cb(const struct device *dev, void *user_data)
     case new_msg:
         bytes_to_read = c ; // TODO: change back to hex read instead of char 
         msg= current_msg;
-        char msg_len[2] = {bytes_to_read,'\0'};  
-        print_uart("new msg");
-        print_uart(msg_len);
-        print_uart("\r\n");
+        //char msg_len[2] = {bytes_to_read,'\0'};  
+        //print_uart("new msg");
+        //print_uart(msg_len);
+        //print_uart("\r\n");
         break;
     
     case current_msg:
@@ -81,12 +81,12 @@ void serial_cb(const struct device *dev, void *user_data)
             bytes_to_read = 0;
             msg = new_msg;
             rx_buf_pos=0;
-            print_uart("msg seng");
+            //print_uart("msg seng");
         }
-        print_uart("current msg");
-        char rxb_len[2] = {rx_buf_pos+ '0','\0'};
-        print_uart(rxb_len);  
-        print_uart("\r\n");
+        //print_uart("current msg");
+        //char rxb_len[2] = {rx_buf_pos+ '0','\0'};
+        //print_uart(rxb_len);  
+        //print_uart("\r\n");
         break;
     default:
         break;

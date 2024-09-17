@@ -159,7 +159,7 @@ void main(void)
 	print_uart("Tell me something and press enter:\r\n");
 
 	/* indefinitely wait for input from the user */
-	while (legacy_receive(&command) == 0) {
+	/*while (legacy_receive(&command) == 0) {
 		print_uart("Echo: ");
 		print_uart(command.payload);
 		print_uart("\r\n");
@@ -167,6 +167,6 @@ void main(void)
 		//print_uart("Radio_MSG:");
 		//print_uart(radio_data);
 		//print_uart("\r\n");
-	}
+	}*/
 #endif
 }
