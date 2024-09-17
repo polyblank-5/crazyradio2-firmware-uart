@@ -58,6 +58,7 @@ const nrfx_timer_t timer0 = NRFX_TIMER_INSTANCE(0);
 
 static void radio_isr(void *arg)
 {
+    print_uart("radio IRQ");
     if (sending) {
         // Packet sent!, the radio is currently switching to RX mode
         // We need to setup the timeout timer, the END time is
@@ -97,10 +98,10 @@ static void radio_isr(void *arg)
         // Packet received or timeout
         print_uart("recieving Radio Message");
         // Setup ack data address
-        nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
-        k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
+        //nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
+        //k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
         // Disable FEM
-        //fem_rxen_set(false);
+        fem_rxen_set(false);
 
         timeout = nrf_timer_event_check(NRF_TIMER0, NRF_TIMER_EVENT_COMPARE1);
         nrf_timer_event_clear(NRF_TIMER0, NRF_TIMER_EVENT_COMPARE1);

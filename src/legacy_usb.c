@@ -40,14 +40,15 @@ void print_uart(char *buf)
 		uart_poll_out(uart_dev, buf[i]);
 	}
 }
+uart_msg_t msg = new_msg;
+static uint8_t bytes_to_read = 0;
+static uint8_t rx_buf[32];
+static uint8_t rx_buf_pos = 0;
 
 void serial_cb(const struct device *dev, void *user_data)
 {
 	uint8_t c;
-	uint8_t bytes_to_read = 0;
-	uint32_t rx_buf_pos = 0;
-    static struct usb_command command;
-
+	
 
 	if (!uart_irq_update(dev)) {
 		return;
@@ -57,21 +58,39 @@ void serial_cb(const struct device *dev, void *user_data)
 		return;
 	}
 
-	uart_fifo_read(dev, &bytes_to_read, 1);
-    char msg_len[2] = {(char)bytes_to_read, '\0'};
-	if (bytes_to_read > 64) {
-        bytes_to_read = 64;
-    }
+    uart_fifo_read(dev, &c, 1);
 
-	int i;
-	for (i = 0; i < bytes_to_read; i++) {
-		if (uart_fifo_read(uart_dev, &c, 1) != 1) {
-			break;
-		}
-		command.payload[rx_buf_pos++] = c;
-	}
-    command.length = bytes_to_read;
-	k_msgq_put(&command_queue, &command, K_FOREVER);
+    switch (msg) {
+    case new_msg:
+        bytes_to_read = c ; // TODO: change back to hex read instead of char 
+        msg= current_msg;
+        char msg_len[2] = {bytes_to_read,'\0'};  
+        print_uart("new msg");
+        print_uart(msg_len);
+        print_uart("\r\n");
+        break;
+    
+    case current_msg:
+        rx_buf[rx_buf_pos++] = c;
+        if (rx_buf_pos>=bytes_to_read-1){
+            rx_buf[rx_buf_pos] = '\0';
+            struct usb_command command;
+            memcpy(command.payload, rx_buf, bytes_to_read+1);
+            command.length = bytes_to_read;
+            k_msgq_put(&command_queue, &command, K_FOREVER);
+            bytes_to_read = 0;
+            msg = new_msg;
+            rx_buf_pos=0;
+            print_uart("msg seng");
+        }
+        print_uart("current msg");
+        char rxb_len[2] = {rx_buf_pos+ '0','\0'};
+        print_uart(rxb_len);  
+        print_uart("\r\n");
+        break;
+    default:
+        break;
+    }
 }
 
 // --------------------------------------------------------

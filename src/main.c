@@ -163,10 +163,10 @@ void main(void)
 		print_uart("Echo: ");
 		print_uart(command.payload);
 		print_uart("\r\n");
-		radioq_get(radio_data);
-		print_uart("Radio_MSG:");
-		print_uart(radio_data);
-		print_uart("\r\n");
+		//radioq_get(radio_data);
+		//print_uart("Radio_MSG:");
+		//print_uart(radio_data);
+		//print_uart("\r\n");
 	}
 #endif
 }

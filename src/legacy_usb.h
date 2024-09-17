@@ -17,6 +17,12 @@ struct usb_command {
     uint32_t length;
 };
 
+typedef enum  {
+    new_msg,
+    current_msg,
+} uart_msg_t;
+ 
+ 
 //K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 #define MSG_SIZE 64
 //static char rx_buf[MSG_SIZE];
