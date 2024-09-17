@@ -26,6 +26,7 @@
 #include <stdbool.h>
 
 void esb_init();
+void esb_init_old();
 void esb_deinit();
 
 /**
