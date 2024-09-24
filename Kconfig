@@ -11,6 +11,15 @@ config ESB_ACK_LOSS_PERCENT
    range 0 100
    default 0
 
+menuconfig ESB
+    bool "Enhanced ShockBurst"
+    default y
+    select NRFX_PPI if HAS_HW_NRF_PPI
+    select NRFX_DPPI if HAS_HW_NRF_DPPIC
+    help
+      Enable ESB functionality.
+
+
 config TARGET_UF2_BOOTLOADER
    bool "Build U2F file and set proper linker setting to work with the UF2 bootloader"
    default false
@@ -26,7 +35,7 @@ config USE_DCDC
 
 config LEGACY_USB_PROTOCOL
    bool "Use legacy, Crazyradio (PA), USB protocol"
-   default n
+   default y
 
 config USB_DEVICE_VID
    default 0x1915 if LEGACY_USB_PROTOCOL
