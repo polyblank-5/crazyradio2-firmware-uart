@@ -518,6 +518,6 @@ bad_request:
 
 // Public API
 int radioq_get(struct esbPacket_s *command){
-    return k_msgq_get(&radio_msgq, command, K_FOREVER);
+    return k_msgq_get(&radio_msgq, command, K_NO_WAIT);
 }
 
