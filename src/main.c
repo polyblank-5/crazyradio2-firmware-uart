@@ -28,7 +28,7 @@
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
 
 #include <zephyr/usb/usb_device.h>
-
+#include <hal/nrf_radio.h>
 #include "radio_mode.h"
 #include "led.h"
 #include "crusb.h"
@@ -144,7 +144,7 @@ void main(void)
 #else
 	print_uart("Initializing UART");
 	static struct usb_command command;
-	char radio_data[32];
+	static struct esbPacket_s * radio_data;
 
 	if (!device_is_ready(uart_dev)) {
 		print_uart("UART device not found!");
@@ -159,14 +159,17 @@ void main(void)
 	print_uart("Tell me something and press enter:\r\n");
 
 	/* indefinitely wait for input from the user */
-	/*while (legacy_receive(&command) == 0) {
+	while (legacy_receive(&command) == 0) {
 		print_uart("Echo: ");
 		print_uart(command.payload);
 		print_uart("\r\n");
-		//radioq_get(radio_data);
-		//print_uart("Radio_MSG:");
-		//print_uart(radio_data);
-		//print_uart("\r\n");
-	}*/
+		radioq_get(radio_data);
+		print_uart("Radio_MSG:");
+		print_uart(radio_data->data);
+		print_uart("\r\n");
+
+		nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_RXEN);
+		//nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_TXEN);
+	}
 #endif
 }

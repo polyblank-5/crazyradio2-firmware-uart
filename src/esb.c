@@ -38,10 +38,8 @@
 
 // New Imports
 #include "legacy_usb.h"
-
-#define PACKET_MAX_SIZE 32  // Define maximum packet size
 #define QUEUE_SIZE 10        // Define the number of messages in the queue
-K_MSGQ_DEFINE(radio_msgq, PACKET_MAX_SIZE, QUEUE_SIZE, 4);
+K_MSGQ_DEFINE(radio_msgq, sizeof(struct esbPacket_s), QUEUE_SIZE, 4);
 
 static K_MUTEX_DEFINE(radio_busy);
 static K_SEM_DEFINE(radioXferDone, 0, 1);
@@ -99,8 +97,10 @@ static void radio_isr(void *arg)
         // Packet received or timeout
         print_uart("recieving Radio Message");
         // Setup ack data address
-        //nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
-        //k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
+        nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
+        print_uart(ackBuffer->data);
+        k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
+        print_uart("Msg put");
         // Disable FEM
         //fem_rxen_set(false);
 
@@ -114,7 +114,7 @@ static void radio_isr(void *arg)
         //k_sem_give(&radioXferDone);
     }
 
-    nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this 
+    nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this (clear interrupt flag need to reset somewhere else)
     nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
 }
 
@@ -517,7 +517,7 @@ bad_request:
 }
 
 // Public API
-int radioq_get( char *command){
+int radioq_get(struct esbPacket_s *command){
     return k_msgq_get(&radio_msgq, command, K_FOREVER);
 }
 
