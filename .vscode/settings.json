@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "clock_control.h": "c",
+        "device.h": "c",
+        "uart.h": "c",
+        "cbor.h": "c",
+        "gpio.h": "c",
+        "nrf_radio.h": "c",
+        "soc.h": "c",
+        "esb.h": "c"
+    },
+    "nrf-connect.applications": []
+}
