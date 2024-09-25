@@ -86,6 +86,38 @@ struct esbPacket_s {
     char data[32];
 } __attribute__((packed));
 
+
+/* ESB Radio packet */
+typedef struct esbPacket_l {
+  /* Part that is written by the radio DMA */
+  struct {
+    uint8_t size;
+    union {
+      uint8_t s1;
+      struct {
+        uint8_t ack :1;
+        uint8_t pid :2;
+      };
+    };
+    uint8_t data[63];
+  } __attribute__((packed));
+  /* Written by the radio interrupt routine */
+  /* Since the value of the RSSI sample can only be between ~[0, 100] we down cast
+   * from uint32_t to uint8_t without lose of precision */
+  uint8_t rssi;
+  unsigned int crc;
+  uint8_t match;
+} EsbPacket_l;
+
+#define ESB_UNICAST_ADDRESS_MATCH 0
+#define ESB_MULTICAST_ADDRESS_MATCH 1
+
+// 1bit packet counters
+static volatile int curr_down = 1;
+static volatile int curr_up = 1;
+
+static volatile bool has_safelink;
+
 /**
  * Send a packet and wait for and received an acknoledgement
  * 
@@ -107,4 +139,4 @@ bool esb_send_packet(struct esbPacket_s *packet, struct esbPacket_s * ack, uint8
 void esb_send_packet_rpc(const rpc_request_t *request, rpc_response_t *response);
 
 // read receiving queue API
-int radioq_get( struct esbPacket_s *command);
+int radioq_get( struct esbPacket_l *command);

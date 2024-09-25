@@ -48,15 +48,96 @@ static bool isInit = false;
 static bool sending;
 static bool timeout;
 static uint8_t pid = 0;
+static volatile struct esbPacket_l * rxPacket;
 static struct esbPacket_s * ackBuffer;
 static bool ack_enabled = true;
 static int arc = 3;
 
 const nrfx_timer_t timer0 = NRFX_TIMER_INSTANCE(0);
 
-static void radio_isr(void *arg)
+
+static void radio_isr(void *arg){
+    struct esbPacket_l *pk;
+
+  if (NRF_RADIO->EVENTS_END) {  // Packet sent or received 
+	  NRF_RADIO->EVENTS_END = 0UL; // UL = unsigned Long
+
+      //Wrong CRC packet are dropped
+      if (!NRF_RADIO->CRCSTATUS) { // The packet was received with CRC error. 
+        NRF_RADIO->TASKS_START = 1UL; // Start RADIO. 
+        return;
+      }
+
+      pk = rxPacket; // get head from queue
+      rxPacket->rssi = (uint8_t) NRF_RADIO->RSSISAMPLE; //RSSI sample result.//TODO: what is an rssi sample 
+      pk->crc = NRF_RADIO->RXCRC; // CRC field of previously received packet. 
+      pk->match = NRF_RADIO->RXMATCH; // Received address. 
+
+
+        // Ack P2P packets right away with empty ack
+      if (pk->match == ESB_UNICAST_ADDRESS_MATCH &&
+          pk->size >= 2 && (pk->data[0] & 0xf3) == 0xf3 && (pk->data[1]&0xf0) == 0x80) {
+        //setupTx(false, true); //TODO: look what is happening here
+
+        k_msgq_put(&radio_msgq,pk,K_NO_WAIT);
+        return;
+      }
+
+      // Ack Bootloader packets right away with regular ack
+      if (pk->match == ESB_UNICAST_ADDRESS_MATCH &&
+          pk->size >= 2 && (pk->data[0] & 0xf3) == 0xf3 && pk->data[1] == 0xfe) { //adress at 1 0xfe
+        //setupTx(false, false);
+
+        k_msgq_put(&radio_msgq,pk,K_NO_WAIT);
+        return;
+      }
+
+      if ((rxPacket->match == ESB_UNICAST_ADDRESS_MATCH))
+      {
+        // Match safeLink packet and answer it
+        if (rxPacket->size == 3 && (rxPacket->data[0]&0xf3) == 0xf3 && rxPacket->data[1] == 0x05) {
+          has_safelink = rxPacket->data[2];
+          //memcpy(servicePacket.data, rxPacket->data, 3);
+          //servicePacket.size = 3;
+          //setupTx(false, false);
+
+          // Reset packet counters
+          curr_down = 1;
+          curr_up = 1;
+          return;
+        }
+
+        // Good packet received, yea!
+        if (!has_safelink || (rxPacket->data[0] & 0x08) != curr_up<<3) {
+          k_msgq_put(&radio_msgq,pk,K_NO_WAIT);
+          curr_up = 1-curr_up;
+        }
+
+        if (!has_safelink || (rxPacket->data[0]&0x04) != curr_down<<2) {
+          curr_down = 1-curr_down;
+          //setupTx(false, false);
+        } else {
+          //setupTx(true, false);
+        }
+      } else
+      {
+        k_msgq_put(&radio_msgq,pk,K_NO_WAIT);
+        // broadcast => no ack
+        NRF_RADIO->PACKETPTR = (uint32_t)&rxPacket;
+        NRF_RADIO->TASKS_START = 1UL;
+      }
+  }
+    
+}
+
+/*static void radio_isr_old(void *arg)
 {
-    print_uart("radio IRQ");
+    if (NRF_RADIO->EVENTS_END) {  // Packet sent or received 
+	    NRF_RADIO->EVENTS_END = 0UL; 
+        print_uart("radio IRQ");
+        k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
+    }
+    return;
 
     if (sending) {
         // Packet sent!, the radio is currently switching to RX mode
@@ -95,12 +176,12 @@ static void radio_isr(void *arg)
         }
     } else {
         // Packet received or timeout
-        print_uart("recieving Radio Message");
+        //print_uart("recieving Radio Message");
         // Setup ack data address
-        nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
-        print_uart(ackBuffer->data);
-        k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
-        print_uart("Msg put");
+        //nrf_radio_packetptr_set(NRF_RADIO, ackBuffer);
+        //print_uart(ackBuffer->data);
+        //k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
+        //print_uart("Msg put");
         // Disable FEM
         //fem_rxen_set(false);
 
@@ -114,9 +195,10 @@ static void radio_isr(void *arg)
         //k_sem_give(&radioXferDone);
     }
 
-    nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this (clear interrupt flag need to reset somewhere else)
-    nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
-}
+    //nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this (clear interrupt flag need to reset somewhere else)
+    //nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
+    nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_EVENT_END);
+}*/
 
 /* Public API */
 
@@ -161,69 +243,71 @@ static uint32_t bytewise_bitswap(uint32_t inp)
 
 void esb_init()
 {
-  NRF_RADIO->POWER = 1;
+    NRF_RADIO->POWER = 1;
 
 
 
-  NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_0dBm << RADIO_TXPOWER_TXPOWER_Pos);
+    NRF_RADIO->TXPOWER = (RADIO_TXPOWER_TXPOWER_0dBm << RADIO_TXPOWER_TXPOWER_Pos);
 
-  NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_2Mbit << RADIO_MODE_MODE_Pos);
+    NRF_RADIO->MODE = (RADIO_MODE_MODE_Nrf_2Mbit << RADIO_MODE_MODE_Pos);
 
-  NRF_RADIO->FREQUENCY = 80;
+    NRF_RADIO->FREQUENCY = 80;
 
 
-  uint64_t address = 0xE7E7E7E7E7ULL;
-  // Radio address config
-  // We use local addresses 0 and 1
-  //  * local address 0 is the unique address of the Crazyflie, used for 1-to-1 communication.
-  //    This can be set dynamically and the current address is stored in EEPROM.
-  //  * local address 1 is used for broadcasts
-  //    This is currently 0xFFE7E7E7E7.
-  NRF_RADIO->PREFIX0 = 0xC4C3FF00UL | (bytewise_bitswap(address >> 32) & 0xFF);  // Prefix byte of addresses 3 to 0
-  NRF_RADIO->PREFIX1 = 0xC5C6C7C8UL;  // Prefix byte of addresses 7 to 4
-  NRF_RADIO->BASE0   = bytewise_bitswap((uint32_t)address);  // Base address for prefix 0
-  NRF_RADIO->BASE1   = 0xE7E7E7E7UL;  // Base address for prefix 1-7
-  NRF_RADIO->TXADDRESS = 0x00UL;      // Set device address 0 to use when transmitting
-  NRF_RADIO->RXADDRESSES = (1<<0) | (1<<1);    // Enable device address 0 and 1 to use which receiving
+    uint64_t address = 0xE7E7E7E7E7ULL;
+    // Radio address config
+    // We use local addresses 0 and 1
+    //  * local address 0 is the unique address of the Crazyflie, used for 1-to-1 communication.
+    //    This can be set dynamically and the current address is stored in EEPROM.
+    //  * local address 1 is used for broadcasts
+    //    This is currently 0xFFE7E7E7E7.
+    NRF_RADIO->PREFIX0 = 0xC4C3FF00UL | (bytewise_bitswap(address >> 32) & 0xFF);  // Prefix byte of addresses 3 to 0
+    NRF_RADIO->PREFIX1 = 0xC5C6C7C8UL;  // Prefix byte of addresses 7 to 4
+    NRF_RADIO->BASE0   = bytewise_bitswap((uint32_t)address);  // Base address for prefix 0
+    NRF_RADIO->BASE1   = 0xE7E7E7E7UL;  // Base address for prefix 1-7
+    NRF_RADIO->TXADDRESS = 0x00UL;      // Set device address 0 to use when transmitting
+    NRF_RADIO->RXADDRESSES = (1<<0) | (1<<1);    // Enable device address 0 and 1 to use which receiving
 
-  // Packet configuration
-  NRF_RADIO->PCNF0 = (PACKET0_S1_SIZE << RADIO_PCNF0_S1LEN_Pos) |
-                     (PACKET0_S0_SIZE << RADIO_PCNF0_S0LEN_Pos) |
-                     (PACKET0_PAYLOAD_SIZE << RADIO_PCNF0_LFLEN_Pos);
+    // Packet configuration
+    NRF_RADIO->PCNF0 = (PACKET0_S1_SIZE << RADIO_PCNF0_S1LEN_Pos) |
+                        (PACKET0_S0_SIZE << RADIO_PCNF0_S0LEN_Pos) |
+                        (PACKET0_PAYLOAD_SIZE << RADIO_PCNF0_LFLEN_Pos);
 
-  // Packet configuration
-   NRF_RADIO->PCNF1 = (RADIO_PCNF1_WHITEEN_Disabled << RADIO_PCNF1_WHITEEN_Pos)    |
-                      (RADIO_PCNF1_ENDIAN_Big << RADIO_PCNF1_ENDIAN_Pos)           |
-                      (PACKET1_BASE_ADDRESS_LENGTH << RADIO_PCNF1_BALEN_Pos)       |
-                      (PACKET1_STATIC_LENGTH << RADIO_PCNF1_STATLEN_Pos)           |
-                      (PACKET1_PAYLOAD_SIZE << RADIO_PCNF1_MAXLEN_Pos);
+    // Packet configuration
+    NRF_RADIO->PCNF1 = (RADIO_PCNF1_WHITEEN_Disabled << RADIO_PCNF1_WHITEEN_Pos)    |
+                        (RADIO_PCNF1_ENDIAN_Big << RADIO_PCNF1_ENDIAN_Pos)           |
+                        (PACKET1_BASE_ADDRESS_LENGTH << RADIO_PCNF1_BALEN_Pos)       |
+                        (PACKET1_STATIC_LENGTH << RADIO_PCNF1_STATLEN_Pos)           |
+                        (PACKET1_PAYLOAD_SIZE << RADIO_PCNF1_MAXLEN_Pos);
 
-  // CRC Config
-  NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Two << RADIO_CRCCNF_LEN_Pos); // Number of checksum bits
-  NRF_RADIO->CRCINIT = 0xFFFFUL;      // Initial value
-  NRF_RADIO->CRCPOLY = 0x11021UL;     // CRC poly: x^16+x^12^x^5+1
+    // CRC Config
+    NRF_RADIO->CRCCNF = (RADIO_CRCCNF_LEN_Two << RADIO_CRCCNF_LEN_Pos); // Number of checksum bits
+    NRF_RADIO->CRCINIT = 0xFFFFUL;      // Initial value
+    NRF_RADIO->CRCPOLY = 0x11021UL;     // CRC poly: x^16+x^12^x^5+1
 
-  // Enable interrupt for end event
-  NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
+    // Enable interrupt for end event
+    NRF_RADIO->INTENSET = RADIO_INTENSET_END_Msk;
 
-  // Set all shorts so that RSSI is measured and only END is required interrupt
-  NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk;
-  NRF_RADIO->SHORTS |= RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
-  NRF_RADIO->SHORTS |= RADIO_SHORTS_DISABLED_TXEN_Msk;
-  NRF_RADIO->SHORTS |= RADIO_SHORTS_DISABLED_RSSISTOP_Enabled;
+    // Set all shorts so that RSSI is measured and only END is required interrupt
+    NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk;
+    NRF_RADIO->SHORTS |= RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
+    NRF_RADIO->SHORTS |= RADIO_SHORTS_DISABLED_TXEN_Msk;
+    NRF_RADIO->SHORTS |= RADIO_SHORTS_DISABLED_RSSISTOP_Enabled;
 
-  NRF_RADIO->TASKS_RXEN = 1U;
+    NRF_RADIO->TASKS_RXEN = 1U;
 
   // Enable disabled interrupt only, the rest is handled by shorts
     //nrf_radio_int_enable(NRF_RADIO, NRF_RADIO_INT_DISABLED_MASK);
+
+    NRF_RADIO->PACKETPTR = (uint32_t)&rxPacket;
     IRQ_CONNECT(RADIO_IRQn, 2, radio_isr, NULL, 0);
     irq_enable(RADIO_IRQn);
 
-  fem_init();
-  isInit = true;
+    fem_init();
+    isInit = true;
 }
 
-void esb_init_old()
+/*void esb_init_old()
 {
     // Timer0
     nrf_timer_bit_width_set(NRF_TIMER0, NRF_TIMER_BIT_WIDTH_32);
@@ -280,7 +364,7 @@ void esb_init_old()
     arc = 3;
 
     isInit = true;
-}
+}*/
 
 void esb_deinit()
 {
@@ -485,7 +569,7 @@ void esb_send_packet_rpc(const rpc_request_t *request, rpc_response_t *response)
         goto bad_request;
     }
     packet.length = payload_length;
-    cbor_value_copy_byte_string(&array, packet.data, &payload_length, &array);
+    cbor_value_coesbInterruptHandlerpy_byte_string(&array, packet.data, &payload_length, &array);
 
     // Send packet!
     uint8_t rssi;
@@ -517,7 +601,7 @@ bad_request:
 }
 
 // Public API
-int radioq_get(struct esbPacket_s *command){
+int radioq_get(struct esbPacket_l *command){
     return k_msgq_get(&radio_msgq, command, K_NO_WAIT);
 }
 
