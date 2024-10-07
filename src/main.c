@@ -144,7 +144,7 @@ void main(void)
 #else
 	print_uart("Initializing UART");
 	static struct usb_command command;
-	static struct esbPacket_l * radio_data;
+	//static struct esbPacket_l * radio_data;
 
 	if (!device_is_ready(uart_dev)) {
 		print_uart("UART device not found!");
@@ -163,10 +163,10 @@ void main(void)
 		print_uart("Echo: ");
 		print_uart(command.payload);
 		print_uart("\r\n");
-		radioq_get(radio_data);
-		print_uart("Radio_MSG:");
-		print_uart(radio_data->data);
-		print_uart("\r\n");
+		//radioq_get(radio_data);
+		//print_uart("Radio_MSG:");
+		//print_uart(radio_data->data);
+		//print_uart("\r\n");
 
 		//nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_START);
 

@@ -39,7 +39,7 @@
 // New Imports
 #include "legacy_usb.h"
 #define QUEUE_SIZE 10        // Define the number of messages in the queue
-K_MSGQ_DEFINE(radio_msgq, sizeof(struct esbPacket_s), QUEUE_SIZE, 4);
+//K_MSGQ_DEFINE(radio_msgq, sizeof(struct esbPacket_s), QUEUE_SIZE, 4);
 
 static K_MUTEX_DEFINE(radio_busy);
 static K_SEM_DEFINE(radioXferDone, 0, 1);
@@ -48,7 +48,7 @@ static bool isInit = false;
 static bool sending;
 static bool timeout;
 static uint8_t pid = 0;
-static volatile struct esbPacket_l * rxPacket;
+static struct esbPacket_l * rxPacket;
 static struct esbPacket_s * ackBuffer;
 static bool ack_enabled = true;
 static int arc = 3;
@@ -56,7 +56,7 @@ static int arc = 3;
 const nrfx_timer_t timer0 = NRFX_TIMER_INSTANCE(0);
 
 
-static void radio_isr(void *arg){
+/*static void radio_isr(void *arg){
     struct esbPacket_l *pk;
 
   if (NRF_RADIO->EVENTS_END) {  // Packet sent or received 
@@ -128,16 +128,16 @@ static void radio_isr(void *arg){
       }
   }
     
-}
+}*/
 
-/*static void radio_isr_old(void *arg)
+static void radio_isr(void *arg)
 {
     if (NRF_RADIO->EVENTS_END) {  // Packet sent or received 
 	    NRF_RADIO->EVENTS_END = 0UL; 
         print_uart("radio IRQ");
-        k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
+        //k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
     }
-    return;
+    //return;
 
     if (sending) {
         // Packet sent!, the radio is currently switching to RX mode
@@ -196,9 +196,11 @@ static void radio_isr(void *arg){
     }
 
     //nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this (clear interrupt flag need to reset somewhere else)
-    //nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
-    nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_EVENT_END);
-}*/
+    nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
+    nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_STOP);
+
+    __NOP();
+}
 
 /* Public API */
 
@@ -569,7 +571,7 @@ void esb_send_packet_rpc(const rpc_request_t *request, rpc_response_t *response)
         goto bad_request;
     }
     packet.length = payload_length;
-    cbor_value_coesbInterruptHandlerpy_byte_string(&array, packet.data, &payload_length, &array);
+    //cbor_value_coesbInterruptHandlerpy_byte_string(&array, packet.data, &payload_length, &array); //TODO import klappt nicht 
 
     // Send packet!
     uint8_t rssi;
@@ -601,7 +603,7 @@ bad_request:
 }
 
 // Public API
-int radioq_get(struct esbPacket_l *command){
+/*int radioq_get(struct esbPacket_l *command){
     return k_msgq_get(&radio_msgq, command, K_NO_WAIT);
-}
+}*/
 

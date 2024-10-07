@@ -64,29 +64,34 @@ void serial_cb(const struct device *dev, void *user_data)
     case new_msg:
         bytes_to_read = c ; // TODO: change back to hex read instead of char 
         msg= current_msg;
-        //char msg_len[2] = {bytes_to_read,'\0'};  
-        //print_uart("new msg");
-        //print_uart(msg_len);
-        //print_uart("\r\n");
+        char msg_len[2] = {bytes_to_read+0x30,'\0'};  
+        print_uart("new msg");
+        print_uart(msg_len);
+        print_uart("\r\n");
         break;
     
     case current_msg:
         rx_buf[rx_buf_pos++] = c;
         if (rx_buf_pos>=bytes_to_read-1){
             rx_buf[rx_buf_pos] = '\0';
-            struct usb_command command;
-            memcpy(command.payload, rx_buf, bytes_to_read+1);
-            command.length = bytes_to_read;
-            k_msgq_put(&command_queue, &command, K_FOREVER);
+            static struct usb_command command;
+            memcpy(command.payload, rx_buf, bytes_to_read-1);
+            print_uart(command.payload);
+            print_uart("\r\n");
+            char btr_len[2] = {bytes_to_read+ '0','\0'};
+            print_uart(btr_len);
+            command.length = bytes_to_read-1;
+            k_msgq_put(&command_queue, &command, K_MSEC(10)); //TODO It stops working here
+            print_uart("msg seng");
             bytes_to_read = 0;
             msg = new_msg;
             rx_buf_pos=0;
-            //print_uart("msg seng");
+            print_uart("msg seng");
         }
-        //print_uart("current msg");
-        //char rxb_len[2] = {rx_buf_pos+ '0','\0'};
-        //print_uart(rxb_len);  
-        //print_uart("\r\n");
+        print_uart("current msg");
+        char rxb_len[2] = {rx_buf_pos+ '0','\0'};
+        print_uart(rxb_len);  
+        print_uart("\r\n");
         break;
     default:
         break;
@@ -168,7 +173,7 @@ void crazyradio_out_cb(uint8_t ep, enum usb_dc_ep_cb_status_code cb_status)
 
 	command.length = bytes_to_read;
 
-    k_msgq_put(&command_queue, &command, K_FOREVER);
+    //k_msgq_put(&command_queue, &command, K_FOREVER);
 
 }
 
@@ -318,7 +323,7 @@ static void usb_thread(void *, void *, void *) {
     uint8_t arc_counter;
 
     while(1) {
-        k_msgq_get(&command_queue, &command, K_FOREVER);
+        //k_msgq_get(&command_queue, &command, K_FOREVER);
 
         // If we are not receiving ack (ie. broadcast) and the received data is > 32 bytes,
         // this means that the buffer actually contains 2 packets to send
@@ -420,11 +425,12 @@ static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length) {
 // ****************** Public API *****************
 
 int legacy_send(const struct usb_command *command) {
-	 return k_msgq_put(&command_queue, command, K_FOREVER);
+	 return k_msgq_put(&command_queue, command, K_MSEC(10));
 }
 
 int legacy_receive(struct usb_command *command) {
-	return k_msgq_get(&command_queue, command, K_FOREVER);
+	return k_msgq_get(&command_queue, command, K_MSEC(10
+    ));
 }
 
 
