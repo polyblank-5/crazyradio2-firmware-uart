@@ -14,7 +14,7 @@
             "type": "cortex-debug",
             "runToEntryPoint": "main",
             "servertype": "jlink",
-            "serverpath": "/opt/SEGGER/JLink_V798e/JLinkGDBServerCLEXE",
+            "serverpath": "/opt/SEGGER/JLink_V798a/JLinkGDBServerCLExe",
             // "serverargs": "",
             "device": "nRF52840_xxAA",
             "interface": "swd",
@@ -23,8 +23,39 @@
             // "jlinkscript":"${workspaceFolder}/BSP/SEGGER/K66FN2M0_emPower/Setup/Kinetis_K66_Target.js",
             //"runToMain": true,
             //"svdFile": "${workspaceFolder}/SVD/nRF52840.svd",
-            "gdbPath": "/home/polyblank/.local/zephyr-sdk-0.16.0/arm-zephyr-eabi-gdb/bin/arm-zephyr-eabi-gdb",
-            "preLaunchTask": "West Build"
+            "gdbPath": "/home/polyblank/.local/zephyr-sdk-0.16.0/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+            "preLaunchTask": "West Build Custom"
+        },
+        {
+            "name": "GDB Remote Debugging (nRF52840)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build_uart_dongle/zephyr/crazyradio2.elf", // Path to your compiled firmware
+            "miDebuggerPath": "/home/polyblank/.local/zephyr-sdk-0.16.0/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb", // Path to your GDB binary
+            "miDebuggerServerAddress": "localhost:2331", // J-Link GDB server address
+            "targetArchitecture": "arm", // Set to ARM for the nRF52840
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false, // Set to true if you want to stop at the entry point
+            "externalConsole": false, // Set to true if you want an external terminal
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "target extended-remote localhost:2331"
+                },
+                {
+                    "text": "monitor reset halt" // Optional: reset and halt the target on startup
+                }
+            ],
+            "serverLaunchTimeout": 10000, // Optional, increase if you have a slow connection
+            "logging": {
+                "trace": true, // Optional, set to true for debugging launch.json issues
+                "traceResponse": true, // Optional, to trace responses
+                "engineLogging": true // Optional, to debug GDB issues
+            }
         }
     ]
 }

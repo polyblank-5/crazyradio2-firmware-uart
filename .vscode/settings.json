@@ -7,7 +7,8 @@
         "gpio.h": "c",
         "nrf_radio.h": "c",
         "soc.h": "c",
-        "esb.h": "c"
+        "esb.h": "c",
+        "legacy_usb.h": "c"
     },
     "nrf-connect.applications": []
 }

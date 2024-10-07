@@ -2,14 +2,14 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "West Build",
+			"label": "West Build Custom",
 			"type": "shell",
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
 			"linux": {
-				"command": "${userHome}/zephyrproject/.venv/bin/west"
+				"command": "${workspaceFolder}/.venv/bin/west"
 			},
 			"windows": {
 				"command": "${userHome}/zephyrproject/.venv/Scripts/west.exe"
@@ -22,7 +22,11 @@
 				"-p",
 				"auto",
 				"-b",
-				"nrf52840dk_nrf52840"
+				"${input:board}",
+				"--build-dir",
+				"${input:build-dir}",
+				"--",
+				"-DCONFIG_LEGACY_USB_PROTOCOL=y"
 			],
 			"problemMatcher": [
 				"$gcc"
@@ -32,7 +36,7 @@
 			"label": "West Configurable Build",
 			"type": "shell",
 			"group": {
-				"kind": "build",
+				"kind": "build"
 			},
 			"linux": {
 				"command": "${userHome}/zephyrproject/.venv/bin/west"
@@ -58,7 +62,7 @@
 			"label": "West Flash",
 			"type": "shell",
 			"linux": {
-				"command": "${userHome}/zephyrproject/.venv/bin/west"
+				"command": "${workspaceFolder}/.venv/bin/west"
 			},
 			"windows": {
 				"command": "${userHome}/zephyrproject/.venv/Scripts/west.exe"
@@ -78,7 +82,7 @@
 		{
 			"id": "board",
 			"type": "promptString",
-			"default": "nrf52840dk_nrf52840",
+			"default": "nrf52840dongle_nrf52840",
 			"description": "See https://docs.zephyrproject.org/latest/boards/index.html"
 		},
 		{
@@ -91,6 +95,12 @@
 				"always",
 				"never"
 			]
+		},
+		{
+			"id": "build-dir",
+			"type": "promptString",
+			"default": "build_uart_dongle",
+			"description": "Directory of build"
 		}
 	]
 }
