@@ -140,3 +140,4 @@ void esb_send_packet_rpc(const rpc_request_t *request, rpc_response_t *response)
 
 // read receiving queue API
 int radioq_get( struct esbPacket_l *command);
+void reInit_esb();

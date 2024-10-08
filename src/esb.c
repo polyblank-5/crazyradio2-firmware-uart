@@ -38,6 +38,7 @@
 
 // New Imports
 #include "legacy_usb.h"
+#include "nrf52840.h"
 #define QUEUE_SIZE 10        // Define the number of messages in the queue
 //K_MSGQ_DEFINE(radio_msgq, sizeof(struct esbPacket_s), QUEUE_SIZE, 4);
 
@@ -132,14 +133,15 @@ const nrfx_timer_t timer0 = NRFX_TIMER_INSTANCE(0);
 
 static void radio_isr(void *arg)
 {
+    nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_START);
     if (NRF_RADIO->EVENTS_END) {  // Packet sent or received 
-	    NRF_RADIO->EVENTS_END = 0UL; 
-        print_uart("radio IRQ");
+	    //NRF_RADIO->EVENTS_END = 0UL; 
+        print_uart(rxPacket->data);
         //k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
     }
     //return;
-
-    if (sending) {
+    
+    /*if (sending) {
         // Packet sent!, the radio is currently switching to RX mode
         // We need to setup the timeout timer, the END time is
         // captured in timer.CC0[2] and timer0.CC[1] is going to be
@@ -193,13 +195,11 @@ static void radio_isr(void *arg)
 
 
         //k_sem_give(&radioXferDone);
-    }
+    }*/
 
-    //nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this (clear interrupt flag need to reset somewhere else)
+    nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this (clear interrupt flag need to reset somewhere else)
     nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
-    nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_STOP);
-
-    __NOP();
+    //__NOP();
 }
 
 /* Public API */
@@ -606,4 +606,13 @@ bad_request:
 /*int radioq_get(struct esbPacket_l *command){
     return k_msgq_get(&radio_msgq, command, K_NO_WAIT);
 }*/
+
+void reInit_esb(){
+    nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk);
+    nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_DISABLED_RXEN_Msk);
+    nrf_ppi_channel_enable(NRF_PPI, NRF_PPI_CHANNEL27); // END -> Timer0 Capture[2]
+    nrfx_ppi_channel_enable(NRF_PPI_CHANNEL26);  // RADIO_ADDR -> T0[1]  (debug)
+    nrf_radio_packetptr_set(NRF_RADIO, rxPacket);
+    nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_RXEN);
+}
 

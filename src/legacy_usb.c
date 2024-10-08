@@ -15,11 +15,12 @@
 
 #include <zephyr/logging/log.h>
 // ---- New Imports -------
+#include "esb.h"
+#include <hal/nrf_radio.h>
 #include <string.h>
 #include "legacy_usb.h"
 // ------------------------ 
 LOG_MODULE_REGISTER(usb);
-
 
 K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 
@@ -81,11 +82,15 @@ void serial_cb(const struct device *dev, void *user_data)
             //char btr_len[2] = {bytes_to_read+ '0','\0'};
             //print_uart(btr_len);
             command.length = bytes_to_read-1;
-            k_msgq_put(&command_queue, &command, K_NO_WAIT); //TODO It stops working here
+            k_msgq_put(&command_queue, &command, K_NO_WAIT); //TODO If in other wait modes, doesnt continue
             //print_uart("msg seng");
             bytes_to_read = 0;
             msg = new_msg;
             rx_buf_pos=0;
+            //
+            //nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_RXEN);
+            //nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_START);
+            reInit_esb();
             //print_uart("msg seng");
         }
         //print_uart("current msg");
