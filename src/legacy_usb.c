@@ -15,7 +15,7 @@
 
 #include <zephyr/logging/log.h>
 // ---- New Imports -------
-
+#include <string.h>
 #include "legacy_usb.h"
 // ------------------------ 
 LOG_MODULE_REGISTER(usb);
@@ -64,10 +64,10 @@ void serial_cb(const struct device *dev, void *user_data)
     case new_msg:
         bytes_to_read = c ; // TODO: change back to hex read instead of char 
         msg= current_msg;
-        char msg_len[2] = {bytes_to_read+0x30,'\0'};  
-        print_uart("new msg");
-        print_uart(msg_len);
-        print_uart("\r\n");
+        //char msg_len[2] = {bytes_to_read+0x30,'\0'};  
+        //print_uart("new msg");
+        //print_uart(msg_len);
+        //print_uart("\r\n");
         break;
     
     case current_msg:
@@ -75,23 +75,23 @@ void serial_cb(const struct device *dev, void *user_data)
         if (rx_buf_pos>=bytes_to_read-1){
             rx_buf[rx_buf_pos] = '\0';
             static struct usb_command command;
-            memcpy(command.payload, rx_buf, bytes_to_read-1);
+            memcpy(command.payload, rx_buf, sizeof(uint8_t)*(bytes_to_read));
             print_uart(command.payload);
             print_uart("\r\n");
-            char btr_len[2] = {bytes_to_read+ '0','\0'};
-            print_uart(btr_len);
+            //char btr_len[2] = {bytes_to_read+ '0','\0'};
+            //print_uart(btr_len);
             command.length = bytes_to_read-1;
-            k_msgq_put(&command_queue, &command, K_MSEC(10)); //TODO It stops working here
-            print_uart("msg seng");
+            k_msgq_put(&command_queue, &command, K_NO_WAIT); //TODO It stops working here
+            //print_uart("msg seng");
             bytes_to_read = 0;
             msg = new_msg;
             rx_buf_pos=0;
-            print_uart("msg seng");
+            //print_uart("msg seng");
         }
-        print_uart("current msg");
-        char rxb_len[2] = {rx_buf_pos+ '0','\0'};
-        print_uart(rxb_len);  
-        print_uart("\r\n");
+        //print_uart("current msg");
+        //char rxb_len[2] = {rx_buf_pos+ '0','\0'};
+        //print_uart(rxb_len);  
+        //print_uart("\r\n");
         break;
     default:
         break;
@@ -425,12 +425,11 @@ static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length) {
 // ****************** Public API *****************
 
 int legacy_send(const struct usb_command *command) {
-	 return k_msgq_put(&command_queue, command, K_MSEC(10));
+	 return k_msgq_put(&command_queue, command, K_NO_WAIT);
 }
 
 int legacy_receive(struct usb_command *command) {
-	return k_msgq_get(&command_queue, command, K_MSEC(10
-    ));
+	return k_msgq_get(&command_queue, command, K_NO_WAIT);
 }
 
 
