@@ -132,11 +132,25 @@ const nrfx_timer_t timer0 = NRFX_TIMER_INSTANCE(0);
 }*/
 
 static void radio_isr(void *arg)
-{
-    nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_START);
+{   
+    fem_rxen_set(true);
+    nrf_radio_packetptr_set(NRF_RADIO, rxPacket);
+    // Set timeout time
+    uint32_t endTime = nrf_timer_cc_get(NRF_TIMER0, NRF_TIMER_CC_CHANNEL2);
+    nrf_timer_cc_set(NRF_TIMER0, NRF_TIMER_CC_CHANNEL1, endTime + 500);
+
+    // Configure PPI
+    nrfx_ppi_channel_disable(NRF_PPI_CHANNEL27); // RADIO_END -> T0[2]
+    nrfx_ppi_channel_enable(NRF_PPI_CHANNEL26);  // RADIO_ADDR -> T0[1] (Disables timeout!)
+    nrfx_ppi_channel_enable(NRF_PPI_CHANNEL22);  // T0[1] -> RADIO_DISABLE (Timeout!)
+
+    // Disable chaining short, disable will switch off the radio for good
+    nrf_radio_shorts_disable(NRF_RADIO, RADIO_SHORTS_DISABLED_RXEN_Msk);
+
+
     if (NRF_RADIO->EVENTS_END) {  // Packet sent or received 
 	    //NRF_RADIO->EVENTS_END = 0UL; 
-        print_uart(rxPacket->data);
+        print_uart("Receiving msg"); //rxPacket->data
         //k_msgq_put(&radio_msgq,ackBuffer,K_NO_WAIT);
     }
     //return;
@@ -199,6 +213,7 @@ static void radio_isr(void *arg)
 
     nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED); //TODO: Figure out why iqr doesnt clear without this (clear interrupt flag need to reset somewhere else)
     nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
+    nrf_radio_task_trigger(NRF_RADIO,NRF_RADIO_TASK_START);
     //__NOP();
 }
 
