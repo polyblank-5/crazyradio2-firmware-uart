@@ -1,4 +1,5 @@
 # Build the project using the Bitcraze builder docker image
+# west build -b nrf52840dongle_nrf52840  --build-dir build_uart_dongle -- -DCONFIG_LEGACY_USB_PROTOCOL=y
 name: CI
 
 on:
