@@ -12,14 +12,11 @@
 #include "fem.h"
 #include "led.h"
 #include "system.h"
-
+#include "legacy_usb.h"
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(usb);
 
-struct usb_command {
-    char payload[64];
-    uint32_t length;
-};
+
 
 K_MSGQ_DEFINE(command_queue, sizeof(struct usb_command), 10, 4);
 
@@ -341,6 +338,16 @@ static void fw_scan(uint8_t start, uint8_t stop, char* data, int data_length) {
             led_pulse_red(K_MSEC(50));
         }
     }
+}
+
+// ****************** Public API *****************
+
+int legacy_send(const struct usb_command *command) {
+	 return k_msgq_put(&command_queue, command, K_NO_WAIT);
+}
+
+int legacy_receive(struct usb_command *command) {
+	return k_msgq_get(&command_queue, command, K_NO_WAIT);
 }
 
 #endif
