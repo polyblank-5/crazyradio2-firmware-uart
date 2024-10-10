@@ -49,8 +49,34 @@ static int arc = 3;
 
 const nrfx_timer_t timer0 = NRFX_TIMER_INSTANCE(0);
 
+static uint32_t swap_bits(uint32_t inp)
+{
+  uint32_t i;
+  uint32_t retval = 0;
+
+  inp = (inp & 0x000000FFUL);
+
+  for(i = 0; i < 8; i++)
+  {
+    retval |= ((inp >> i) & 0x01) << (7 - i);
+  }
+
+  return retval;
+}
+
+static uint32_t bytewise_bitswap(uint32_t inp)
+{
+  return (swap_bits(inp >> 24) << 24)
+       | (swap_bits(inp >> 16) << 16)
+       | (swap_bits(inp >> 8) << 8)
+       | (swap_bits(inp));
+}
+
 static void radio_isr(void *arg)
 {
+    sending = true;
+    ack_enabled = true;
+    __NOP();
     if (sending) {
         // Packet sent!, the radio is currently switching to RX mode
         // We need to setup the timeout timer, the END time is
@@ -119,7 +145,7 @@ void esb_init()
     radioConfig.lflen = 6;
     radioConfig.s0len = 0;
     radioConfig.s1len = 3;
-    radioConfig.maxlen = 32;
+    radioConfig.maxlen = 64; //32 in original
     radioConfig.statlen = 0;
     radioConfig.balen = 4;
     radioConfig.big_endian = true;
@@ -128,25 +154,38 @@ void esb_init()
 
     // Configure channel and bitrate
     nrf_radio_mode_set(NRF_RADIO, NRF_RADIO_MODE_NRF_2MBIT);
-    nrf_radio_frequency_set(NRF_RADIO, 2447);
+    nrf_radio_frequency_set(NRF_RADIO, 80); //80 for fly 2447 in original
 
-    // Configure Addresses
-    nrf_radio_base0_set(NRF_RADIO, 0xe7e7e7e7);
+    /*// Configure Addresses
+    nrf_radio_base0_set(NRF_RADIO, 0xe7e7e7e7); // 0xE7E7E7E7 for fly
     nrf_radio_prefix0_set(NRF_RADIO, 0x000000e7);
     nrf_radio_txaddress_set(NRF_RADIO, 0);
     nrf_radio_rxaddresses_set(NRF_RADIO, 0x01u);
+    */
+    uint64_t address = 0xE7E7E7E7E7ULL;
+    nrf_radio_base0_set(NRF_RADIO,bytewise_bitswap((uint32_t)address));
+    nrf_radio_base1_set(NRF_RADIO, 0xE7E7E7E7UL);
+    nrf_radio_prefix0_set(NRF_RADIO,0xC4C3FF00UL | (bytewise_bitswap(address >> 32) & 0xFF));
+    nrf_radio_prefix1_set(NRF_RADIO,0xC5C6C7C8UL);
+    nrf_radio_txaddress_set(NRF_RADIO, 0);
+    nrf_radio_rxaddresses_set(NRF_RADIO, (1<<0) | (1<<1));    
 
     // Configure CRC
     nrf_radio_crc_configure(NRF_RADIO, 2, NRF_RADIO_CRC_ADDR_INCLUDE, 0x11021UL);
     nrf_radio_crcinit_set(NRF_RADIO, 0xfffful);
+    // same as in the fly 
 
     // Acquire RSSI at radio address
-    nrf_radio_shorts_enable(NRF_RADIO, NRF_RADIO_SHORT_ADDRESS_RSSISTART_MASK | NRF_RADIO_SHORT_DISABLED_RSSISTOP_MASK);
-
+    //nrf_radio_shorts_enable(NRF_RADIO, NRF_RADIO_SHORT_ADDRESS_RSSISTART_MASK | NRF_RADIO_SHORT_DISABLED_RSSISTOP_MASK);
+    nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk | RADIO_SHORTS_DISABLED_RSSISTOP_Enabled);
+    
     // Enable disabled interrupt only, the rest is handled by shorts
-    nrf_radio_int_enable(NRF_RADIO, NRF_RADIO_INT_DISABLED_MASK);
+    //nrf_radio_int_enable(NRF_RADIO, NRF_RADIO_INT_DISABLED_MASK);
+    nrf_radio_int_enable(NRF_RADIO,RADIO_INTENSET_END_Msk);
     IRQ_CONNECT(RADIO_IRQn, 2, radio_isr, NULL, 0);
     irq_enable(RADIO_IRQn);
+
+    nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_RXEN);
 
     fem_init();
 
@@ -208,29 +247,6 @@ void esb_set_bitrate(esbBitrate_t bitrate)
             break;
     }
     k_mutex_unlock(&radio_busy);
-}
-
-static uint32_t swap_bits(uint32_t inp)
-{
-  uint32_t i;
-  uint32_t retval = 0;
-
-  inp = (inp & 0x000000FFUL);
-
-  for(i = 0; i < 8; i++)
-  {
-    retval |= ((inp >> i) & 0x01) << (7 - i);
-  }
-
-  return retval;
-}
-
-static uint32_t bytewise_bitswap(uint32_t inp)
-{
-  return (swap_bits(inp >> 24) << 24)
-       | (swap_bits(inp >> 16) << 16)
-       | (swap_bits(inp >> 8) << 8)
-       | (swap_bits(inp));
 }
 
 void esb_set_address(uint8_t address[5])

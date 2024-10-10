@@ -35,7 +35,7 @@
 #include "fem.h"
 #include "button.h"
 #include "esb.h"
-
+#include "legacy_usb.h"
 #include "rpc.h"
 #include "api.h"
 
@@ -44,6 +44,10 @@
 #include <tinycbor/cbor_buf_writer.h>
 
 #include <nrfx_clock.h>
+
+#include <nrfx_ppi.h>
+#include <hal/nrf_radio.h>
+
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
@@ -132,6 +136,17 @@ void main(void)
 #else
 	while(1) {
 		k_sleep(K_MSEC(1000));
+		/*struct usb_command command;
+		strcpy(command.payload,"payload");
+		command.length = 8;
+		legacy_send(&command);
+		*/
+		/*
+		nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk);
+		nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_DISABLED_RXEN_Msk);
+		nrf_ppi_channel_enable(NRF_PPI, NRF_PPI_CHANNEL27); // END -> Timer0 Capture[2]
+		nrfx_ppi_channel_enable(NRF_PPI_CHANNEL26);  // RADIO_ADDR -> T0[1]  (debug)
+		*/
 	}
 #endif
 }
