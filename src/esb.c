@@ -162,7 +162,7 @@ void esb_init()
     nrf_radio_txaddress_set(NRF_RADIO, 0);
     nrf_radio_rxaddresses_set(NRF_RADIO, 0x01u);
     */
-       
+    // Should be correct, doenst work with vanilla 
     uint64_t address = 0xE7E7E7E7E7ULL;
     nrf_radio_base0_set(NRF_RADIO,bytewise_bitswap((uint32_t)address));
     nrf_radio_base1_set(NRF_RADIO, 0xE7E7E7E7UL);
@@ -179,7 +179,7 @@ void esb_init()
 
     // Acquire RSSI at radio address
     //nrf_radio_shorts_enable(NRF_RADIO, NRF_RADIO_SHORT_ADDRESS_RSSISTART_MASK | NRF_RADIO_SHORT_DISABLED_RSSISTOP_MASK);
-    nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk | RADIO_SHORTS_DISABLED_RSSISTOP_Enabled);
+    nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk | RADIO_SHORTS_DISABLED_RSSISTOP_Enabled);
     
     // Enable disabled interrupt only, the rest is handled by shorts
     //nrf_radio_int_enable(NRF_RADIO, NRF_RADIO_INT_DISABLED_MASK);

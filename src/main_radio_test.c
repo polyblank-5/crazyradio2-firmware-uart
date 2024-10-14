@@ -54,7 +54,7 @@ static uint32_t bytewise_bitswap(uint32_t inp)
 }
 
 
-#define RADIO_CHANNEL 47  // Should match the transmitter's channel
+#define RADIO_CHANNEL 80  // Should match the transmitter's channel
 
 void radio_init(void) {
     NRF_RADIO->TXPOWER = RADIO_TXPOWER_TXPOWER_0dBm;
