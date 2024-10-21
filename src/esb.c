@@ -36,6 +36,10 @@
 #include <zephyr/device.h>
 #include <zephyr/random/rand32.h>
 
+//New
+#include <zephyr/logging/log.h>
+LOG_MODULE_DECLARE(usb);
+
 static K_MUTEX_DEFINE(radio_busy);
 static K_SEM_DEFINE(radioXferDone, 0, 1);
 
@@ -129,10 +133,12 @@ void esb_init()
     // Configure channel and bitrate
     nrf_radio_mode_set(NRF_RADIO, NRF_RADIO_MODE_NRF_2MBIT);
     nrf_radio_frequency_set(NRF_RADIO, 2447);
-
+    LOG_DBG("init freq %u",2447);
     // Configure Addresses
     nrf_radio_base0_set(NRF_RADIO, 0xe7e7e7e7);
+    LOG_DBG("init base0 %u",0xe7e7e7e7);
     nrf_radio_prefix0_set(NRF_RADIO, 0x000000e7);
+    LOG_DBG("init prefix0 %u",0x000000e7);
     nrf_radio_txaddress_set(NRF_RADIO, 0);
     nrf_radio_rxaddresses_set(NRF_RADIO, 0x01u);
 
@@ -191,6 +197,7 @@ void esb_set_channel(uint8_t channel)
 {
     k_mutex_lock(&radio_busy, K_FOREVER);
     if (channel <= 100) {
+        LOG_DBG("channel %u",channel);
         nrf_radio_frequency_set(NRF_RADIO, 2400+channel);
     }
     k_mutex_unlock(&radio_busy);
@@ -237,9 +244,11 @@ void esb_set_address(uint8_t address[5])
 {
     k_mutex_lock(&radio_busy, K_FOREVER);
     uint32_t base0 = address[1]<<24 | address[2]<<16 | address[3]<<8 | address[4];
+    LOG_DBG("base0 %u",base0);
     nrf_radio_base0_set(NRF_RADIO, bytewise_bitswap(base0));
     uint32_t prefix0 = nrf_radio_prefix0_get(NRF_RADIO);
     prefix0 = (prefix0 & 0xffffff00) | (swap_bits(address[0]) & 0x0ff);
+    LOG_DBG("prefix0 %u",prefix0);
     nrf_radio_prefix0_set(NRF_RADIO, prefix0);
     k_mutex_unlock(&radio_busy);
 }
