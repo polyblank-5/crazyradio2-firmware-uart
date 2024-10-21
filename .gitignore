@@ -8,3 +8,11 @@ modules/
 crazyradio2.zip
 .venv/
 build_dongle/
+build_blinky/
+build_blinky_dongle/
+build_echo/
+build_radio/
+build_uart/
+build_uart_dongle/
+build_uart_dongle_2/
+build_vanilla/
