@@ -38,7 +38,7 @@
 
 //New
 #include <zephyr/logging/log.h>
-LOG_MODULE_DECLARE(usb);
+LOG_MODULE_REGISTER(radio);
 
 static K_MUTEX_DEFINE(radio_busy);
 static K_SEM_DEFINE(radioXferDone, 0, 1);
@@ -141,7 +141,7 @@ void esb_init()
     LOG_DBG("init prefix0 %u",0x000000e7);
     nrf_radio_txaddress_set(NRF_RADIO, 0);
     nrf_radio_rxaddresses_set(NRF_RADIO, 0x01u);
-
+    
     // Configure CRC
     nrf_radio_crc_configure(NRF_RADIO, 2, NRF_RADIO_CRC_ADDR_INCLUDE, 0x11021UL);
     nrf_radio_crcinit_set(NRF_RADIO, 0xfffful);
@@ -279,7 +279,10 @@ bool esb_send_packet(struct esbPacket_s *packet, struct esbPacket_s * ack, uint8
         bool ack_received = false;
 
         int arc_counter = 0;
-
+        LOG_DBG("sending ESB message");
+        LOG_DBG("prefix0: %u , base0: %u",NRF_RADIO->PREFIX0,NRF_RADIO->BASE0);
+        LOG_DBG("prefix1: %u , base1: %u",NRF_RADIO->PREFIX1,NRF_RADIO->BASE1);
+        LOG_DBG("channel: %u",NRF_RADIO->FREQUENCY);
         do {
             nrf_radio_shorts_enable(NRF_RADIO, RADIO_SHORTS_READY_START_Msk |
                                         RADIO_SHORTS_END_DISABLE_Msk);
