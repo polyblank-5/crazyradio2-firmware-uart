@@ -10,6 +10,14 @@ config ESB_ACK_LOSS_PERCENT
    int "Percent of generated ack loss, between 0 and 100"
    range 0 100
    default 0
+   
+menuconfig ESB
+    bool "Enhanced ShockBurst"
+    default n
+    select NRFX_PPI if HAS_HW_NRF_PPI
+    select NRFX_DPPI if HAS_HW_NRF_DPPIC
+    help
+      Enable ESB functionality.
 
 config TARGET_UF2_BOOTLOADER
    bool "Build U2F file and set proper linker setting to work with the UF2 bootloader"
